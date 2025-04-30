@@ -9,39 +9,38 @@ const port = 3000;
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-const usersFilePath = path.join(__dirname, 'users.json');
+let users = [];
 
-// Ensure users.json exists
-if (!fs.existsSync(usersFilePath)) {
-    fs.writeFileSync(usersFilePath, '[]');
+// Determine the data source based on the environment
+if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') {
+    const testDataPath = path.join(__dirname, 'data', 'test-users.json');
+    users = JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
+    console.log('Using test data from JSON file');
+} else {
+    console.log('Using in-memory database');
 }
 
 // Read users
 app.get('/api/users', (req, res) => {
-    const users = JSON.parse(fs.readFileSync(usersFilePath));
     res.json(users);
 });
 
 // Create user
 app.post('/api/users', (req, res) => {
-    const users = JSON.parse(fs.readFileSync(usersFilePath));
     const newUser = {
         id: Date.now().toString(),
-        name: req.body.name,
+        username: req.body.username,
         email: req.body.email
     };
     users.push(newUser);
-    fs.writeFileSync(usersFilePath, JSON.stringify(users));
     res.json(newUser);
 });
 
 // Update user
 app.put('/api/users/:id', (req, res) => {
-    let users = JSON.parse(fs.readFileSync(usersFilePath));
     const userIndex = users.findIndex(user => user.id === req.params.id);
     if (userIndex > -1) {
         users[userIndex] = { ...users[userIndex], ...req.body };
-        fs.writeFileSync(usersFilePath, JSON.stringify(users));
         res.json(users[userIndex]);
     } else {
         res.status(404).send('User not found');
@@ -50,12 +49,11 @@ app.put('/api/users/:id', (req, res) => {
 
 // Delete user
 app.delete('/api/users/:id', (req, res) => {
-    let users = JSON.parse(fs.readFileSync(usersFilePath));
     users = users.filter(user => user.id !== req.params.id);
-    fs.writeFileSync(usersFilePath, JSON.stringify(users));
     res.sendStatus(200);
 });
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'production'}`);
 });
